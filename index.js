@@ -25,9 +25,20 @@ const client = new Client({
 
 const player = new Player(client);
 
+// =========================
+// PLAYER DEBUG
+// =========================
+
+player.on("debug", (message) => {
+    console.log(`[PLAYER DEBUG] ${message}`);
+});
+
+player.events.on("debug", (queue, message) => {
+    console.log(`[QUEUE DEBUG] ${message}`);
+});
+
 const PREFIX = ".";
 
-// كلمات النسخ التي نستبعدها افتراضيًا
 const BAD_WORDS = [
     "remix",
     "cover",
@@ -73,6 +84,10 @@ function cleanQuery(query) {
         .trim();
 }
 
+// =========================
+// READY
+// =========================
+
 client.once("ready", async () => {
     try {
         await player.extractors.loadMulti(DefaultExtractors);
@@ -83,6 +98,11 @@ client.once("ready", async () => {
 
     console.log(`Bot is online as ${client.user.tag}`);
 });
+
+// =========================
+// MESSAGE CREATE
+// =========================
+
 client.on("messageCreate", async (message) => {
     if (message.author.bot) return;
 
@@ -116,9 +136,6 @@ client.on("messageCreate", async (message) => {
 
         const specialVersion = wantsSpecialVersion(query);
 
-        // لو المستخدم طلب Remix / Live / Slowed إلخ،
-        // نحتفظ بالبحث كما كتبه.
-        // غير كده نحاول البحث عن النسخة الأصلية.
         if (!specialVersion) {
             query = cleanQuery(query);
         }
@@ -128,10 +145,16 @@ client.on("messageCreate", async (message) => {
                 `🔎 بدور على: **${query}**`
             );
 
+            console.log(`[SEARCH] ${query}`);
+
             const result = await player.search(query, {
                 requestedBy: message.author,
                 searchEngine: QueryType.SOUNDCLOUD
             });
+
+            console.log(
+                `[SEARCH RESULT] Found ${result?.tracks?.length || 0} tracks`
+            );
 
             if (!result || !result.tracks.length) {
                 return message.reply(
@@ -141,8 +164,6 @@ client.on("messageCreate", async (message) => {
 
             let tracks = result.tracks;
 
-            // لو المستخدم لم يطلب Remix/Cover/Live...
-            // نستبعد النتائج التي تحتوي على الكلمات دي.
             if (!specialVersion) {
                 const filtered = tracks.filter(track => {
                     const title = track.title.toLowerCase();
@@ -159,6 +180,9 @@ client.on("messageCreate", async (message) => {
 
             const track = tracks[0];
 
+            console.log(`[TRACK] ${track.title}`);
+            console.log(`[TRACK URL] ${track.url}`);
+
             const queue = player.nodes.create(message.guild, {
                 metadata: {
                     channel: message.channel,
@@ -169,14 +193,32 @@ client.on("messageCreate", async (message) => {
                 leaveOnEmpty: true
             });
 
+            console.log("[QUEUE] Queue created");
+
             if (!queue.connection) {
+                console.log(
+                    `[VOICE] Connecting to ${voiceChannel.name}`
+                );
+
                 await queue.connect(voiceChannel);
+
+                console.log("[VOICE] Connected successfully");
             }
 
             await queue.addTrack(track);
 
+            console.log(
+                `[QUEUE] Track added. Queue size: ${queue.tracks.size}`
+            );
+
             if (!queue.isPlaying()) {
+                console.log("[PLAYER] Starting playback...");
+
                 await queue.node.play();
+
+                console.log("[PLAYER] Playback started");
+            } else {
+                console.log("[PLAYER] Already playing");
             }
 
             return message.reply(
