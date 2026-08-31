@@ -9,7 +9,7 @@ const {
 } = require("discord-player");
 
 const {
-    SoundCloudExtractor
+    DefaultExtractors
 } = require("@discord-player/extractor");
 
 require("dotenv").config();
@@ -75,14 +75,14 @@ function cleanQuery(query) {
 
 client.once("ready", async () => {
     try {
-        await player.extractors.register(SoundCloudExtractor, {});
+        await player.extractors.loadMulti(DefaultExtractors);
+        console.log("Extractors loaded successfully");
     } catch (error) {
-        console.log("Extractor registration:", error.message);
+        console.error("Extractor loading error:", error);
     }
 
     console.log(`Bot is online as ${client.user.tag}`);
 });
-
 client.on("messageCreate", async (message) => {
     if (message.author.bot) return;
 
